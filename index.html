@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>业主公共事项投票系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px 0}
+.container{max-width:560px;margin:0 auto;padding:0 16px}
+.card{background:#fff;border-radius:14px;padding:24px;margin-bottom:16px;box-shadow:0 4px 20px rgba(0,0,0,.12)}
+.sys-name{text-align:center;color:#fff;font-size:13px;letter-spacing:2px;margin-bottom:8px;opacity:.85}
+h1{font-size:21px;color:#1a1a1a;text-align:center;margin-bottom:6px}
+.subtitle{text-align:center;color:#888;font-size:13px;margin-bottom:18px}
+.info-item{padding:10px 0;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between}
+.info-label{color:#888;font-size:13px}.info-value{color:#1a1a1a;font-size:13px;font-weight:500}
+.form-group{margin:14px 0}
+.form-group label{display:block;font-size:14px;color:#333;margin-bottom:5px;font-weight:500}
+.req{color:#ff4d4f;font-size:12px;margin-left:2px}
+.opt-tag{color:#bbb;font-size:11px;margin-left:4px}
+.form-group input{width:100%;padding:9px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;transition:border .2s}
+.form-group input:focus{border-color:#667eea}
+.field-options{display:flex;gap:8px;margin-top:5px;flex-wrap:wrap}
+.field-opt{padding:8px 14px;border:2px solid #e0e0e0;border-radius:8px;text-align:center;cursor:pointer;font-size:13px;font-weight:500;transition:all .2s;background:#fff}
+.field-opt:hover,.field-opt.selected{border-color:#667eea;background:#f0edff;color:#667eea}
+.vote-options{display:flex;gap:14px;margin:18px 0}
+.vote-btn{flex:1;padding:14px;border:2px solid #e0e0e0;border-radius:10px;background:#fff;font-size:17px;cursor:pointer;text-align:center;transition:all .2s;font-weight:500}
+.vote-btn.agree:hover,.vote-btn.agree.selected{border-color:#52c41a;background:#f6ffed;color:#52c41a}
+.vote-btn.disagree:hover,.vote-btn.disagree.selected{border-color:#ff4d4f;background:#fff2f0;color:#ff4d4f}
+.submit-btn{width:100%;padding:13px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:500;cursor:pointer;margin-top:10px}
+.msg{text-align:center;padding:10px;border-radius:8px;margin:10px 0;font-size:14px;display:none}
+.msg.success{display:block;background:#f6ffed;color:#52c41a;border:1px solid #b7eb8f}
+.msg.error{display:block;background:#fff2f0;color:#ff4d4f;border:1px solid #ffa39e}
+.result-bar{height:26px;border-radius:13px;background:#f0f0f0;overflow:hidden;margin:8px 0}
+.result-fill{height:100%;border-radius:13px;transition:width .5s;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:500;min-width:36px}
+.result-fill.agree{background:linear-gradient(90deg,#52c41a,#73d13d)}
+.total-votes{text-align:center;color:#888;font-size:12px;margin-top:10px}
+.notice{font-size:11px;color:#aaa;line-height:1.6;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="container">
+<p class="sys-name" id="sysName"></p>
+<div class="card"><h1 id="pageTitle">加载中...</h1><p class="subtitle" id="pageSubtitle"></p><div id="infoList"></div></div>
+<div class="card">
+<div class="form-group"><label>业主姓名<span class="req">*</span></label><input type="text" id="name" placeholder="请输入姓名"></div>
+<div class="form-group"><label>楼栋号<span class="req">*</span></label><input type="text" id="building" placeholder="如：3栋"></div>
+<div class="form-group"><label>房号<span class="req">*</span></label><input type="text" id="room" placeholder="如：502"></div>
+<div id="customFields"></div>
+<div class="vote-options"><div class="vote-btn agree" onclick="selVote('agree')">✅ 赞成</div><div class="vote-btn disagree" onclick="selVote('disagree')">❌ 反对</div></div>
+<input type="hidden" id="voteChoice">
+<button class="submit-btn" onclick="submitVote()">提交投票</button>
+<div id="msg" class="msg"></div>
+<p class="notice" id="noticeText"></p>
+</div>
+<div class="card"><h3 style="font-size:15px;margin-bottom:10px">📊 实时投票结果</h3><div id="resultArea"><p style="text-align:center;color:#999;font-size:13px">暂无投票数据</p></div></div>
+</div>
+<script>
+const cid=new URLSearchParams(location.search).get('cid');
+if(!cid)document.body.innerHTML='<div style="text-align:center;margin-top:100px;color:#fff;font-size:18px">链接无效</div>';
+let sVote='',cfg=null;
+function selVote(t){sVote=t;document.querySelectorAll('.vote-btn').forEach(b=>b.classList.remove('selected'));document.querySelector('.vote-btn.'+t).classList.add('selected')}
+function selField(k,v){document.getElementById('field_'+k).value=v;document.querySelectorAll('.fopt-'+k).forEach(b=>b.classList.remove('selected'));document.querySelector('.fopt-'+k+'[data-v="'+v+'"]').classList.add('selected')}
+function showMsg(t,tp){const m=document.getElementById('msg');m.textContent=t;m.className='msg '+tp}
+function init(){
+fetch('/api/system-name').then(r=>r.json()).then(d=>document.getElementById('sysName').textContent=d.name);
+fetch('/api/config?cid='+cid).then(r=>r.json()).then(c=>{
+if(c.error)return;cfg=c;
+document.getElementById('pageTitle').textContent=c.title;document.title=c.title;
+document.getElementById('pageSubtitle').textContent=c.subtitle;
+document.getElementById('noticeText').textContent='* '+c.notice;
+document.getElementById('infoList').innerHTML=(c.infoItems||[]).map((it,i)=>'<div class="info-item"'+(i===c.infoItems.length-1?' style="border:none"':'')+'><span class="info-label">'+it.label+'</span><span class="info-value">'+it.value+'</span></div>').join('');
+document.getElementById('customFields').innerHTML=(c.customFields||[]).map(f=>{
+const tag=f.required?'<span class="req">*</span>':'<span class="opt-tag">（选填）</span>';
+if(f.type==='select')return '<div class="form-group"><label>'+f.label+tag+'</label><input type="hidden" id="field_'+f.key+'"><div class="field-options">'+f.options.map(o=>'<div class="field-opt fopt-'+f.key+'" data-v="'+o+'" onclick="selField(\''+f.key+'\',\''+o+'\')">'+o+'</div>').join('')+'</div></div>';
+return '<div class="form-group"><label>'+f.label+tag+'</label><input type="text" id="field_'+f.key+'" placeholder="请输入'+f.label+'"></div>';
+}).join('');
+});loadResults();}
+function submitVote(){
+const n=document.getElementById('name').value.trim(),b=document.getElementById('building').value.trim(),r=document.getElementById('room').value.trim();
+if(!n||!b||!r){showMsg('请填写姓名、楼栋、房号','error');return}
+if(!sVote){showMsg('请选择赞成或反对','error');return}
+const fields={};if(cfg&&cfg.customFields){for(const f of cfg.customFields){const el=document.getElementById('field_'+f.key);const v=el?el.value.trim():'';if(f.required&&!v){showMsg('请填写'+f.label,'error');return}if(v)fields[f.key]=v}}
+fetch('/api/vote?cid='+cid,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,building:b,room:r,vote:sVote,fields})}).then(r=>r.json()).then(d=>{if(d.success){showMsg('投票成功！感谢参与','success');loadResults()}else showMsg(d.message||'失败','error')}).catch(()=>showMsg('网络错误','error'));}
+function loadResults(){fetch('/api/results?cid='+cid).then(r=>r.json()).then(d=>{const t=d.agree+d.disagree;if(!t)return;const ap=Math.round(d.agree/t*100);document.getElementById('resultArea').innerHTML='<div style="margin-bottom:6px"><span style="font-size:13px;color:#52c41a">赞成 '+d.agree+' 票</span><span style="float:right;font-size:13px;color:#ff4d4f">反对 '+d.disagree+' 票</span></div><div class="result-bar"><div class="result-fill agree" style="width:'+ap+'%">'+ap+'%</div></div><div class="total-votes">共计 '+t+' 票</div>'})}
+init();
+</script>
+</body>
+</html>

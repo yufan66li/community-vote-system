@@ -1,2 +1,3 @@
 backup_*.json
 node_modules/
+.env

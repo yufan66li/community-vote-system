@@ -13,16 +13,45 @@
         "subtitle": "全体业主表决 · 共358户",
         "notice": "本投票仅限本小区业主参与，一户一票，请如实填写信息。投票结果仅用于业主表决，个人信息严格保密。",
         "infoItems": [
-          {"label": "议题", "value": "小区安装慢充充电桩"},
-          {"label": "充电桩类型", "value": "交流慢充桩"},
-          {"label": "安装位置", "value": "小区地下车库"}
+          {
+            "label": "议题",
+            "value": "小区安装慢充充电桩"
+          },
+          {
+            "label": "充电桩类型",
+            "value": "交流慢充桩"
+          },
+          {
+            "label": "安装位置",
+            "value": "小区地下车库"
+          }
         ],
         "customFields": [
-          {"key":"phone","label":"联系电话","type":"text","required":false},
-          {"key":"vehicle","label":"交通工具","type":"select","required":false,"options":["电瓶车","新能源汽车","燃油车"]}
+          {
+            "key": "phone",
+            "label": "联系电话",
+            "type": "text",
+            "required": false
+          },
+          {
+            "key": "vehicle",
+            "label": "交通工具",
+            "type": "select",
+            "required": false,
+            "options": [
+              "电瓶车",
+              "新能源汽车",
+              "燃油车"
+            ]
+          }
         ]
       },
-      "votes": {"agree":0,"disagree":0,"voters":[]}
+      "votes": {
+        "agree": 0,
+        "disagree": 0,
+        "voters": [],
+        "abstain": 0
+      }
     }
   ]
 }

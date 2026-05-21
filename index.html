@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>业主公共事项投票系统</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -23,10 +23,15 @@ h1{font-size:21px;color:#1a1a1a;text-align:center;margin-bottom:6px}
 .field-options{display:flex;gap:8px;margin-top:5px;flex-wrap:wrap}
 .field-opt{padding:8px 14px;border:2px solid #e0e0e0;border-radius:8px;text-align:center;cursor:pointer;font-size:13px;font-weight:500;transition:all .2s;background:#fff}
 .field-opt:hover,.field-opt.selected{border-color:#667eea;background:#f0edff;color:#667eea}
-.vote-options{display:flex;gap:14px;margin:18px 0}
-.vote-btn{flex:1;padding:14px;border:2px solid #e0e0e0;border-radius:10px;background:#fff;font-size:17px;cursor:pointer;text-align:center;transition:all .2s;font-weight:500}
+.vote-options{display:flex;gap:10px;margin:18px 0}
+.vote-btn{flex:1;padding:12px 8px;border:2px solid #e0e0e0;border-radius:10px;background:#fff;font-size:15px;cursor:pointer;text-align:center;transition:all .2s;font-weight:500}
 .vote-btn.agree:hover,.vote-btn.agree.selected{border-color:#52c41a;background:#f6ffed;color:#52c41a}
 .vote-btn.disagree:hover,.vote-btn.disagree.selected{border-color:#ff4d4f;background:#fff2f0;color:#ff4d4f}
+.vote-btn.abstain:hover,.vote-btn.abstain.selected{border-color:#faad14;background:#fffbe6;color:#d48806}
+.sig-box{border:1px solid #e0e0e0;border-radius:10px;padding:8px;margin-top:5px;background:#fafafa}
+.sig-box canvas{width:100%;height:120px;border-radius:8px;background:#fff;cursor:crosshair;touch-action:none}
+.sig-actions{display:flex;justify-content:flex-end;margin-top:4px}
+.sig-actions button{background:#e0e0e0;border:none;padding:4px 12px;border-radius:6px;font-size:12px;cursor:pointer}
 .submit-btn{width:100%;padding:13px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:500;cursor:pointer;margin-top:10px}
 .msg{text-align:center;padding:10px;border-radius:8px;margin:10px 0;font-size:14px;display:none}
 .msg.success{display:block;background:#f6ffed;color:#52c41a;border:1px solid #b7eb8f}
@@ -34,6 +39,8 @@ h1{font-size:21px;color:#1a1a1a;text-align:center;margin-bottom:6px}
 .result-bar{height:26px;border-radius:13px;background:#f0f0f0;overflow:hidden;margin:8px 0}
 .result-fill{height:100%;border-radius:13px;transition:width .5s;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:500;min-width:36px}
 .result-fill.agree{background:linear-gradient(90deg,#52c41a,#73d13d)}
+.result-fill.disagree{background:linear-gradient(90deg,#ff4d4f,#ff7875)}
+.result-fill.abstain{background:linear-gradient(90deg,#faad14,#ffc53d)}
 .total-votes{text-align:center;color:#888;font-size:12px;margin-top:10px}
 .notice{font-size:11px;color:#aaa;line-height:1.6;margin-top:6px}
 </style>
@@ -47,8 +54,9 @@ h1{font-size:21px;color:#1a1a1a;text-align:center;margin-bottom:6px}
 <div class="form-group"><label>楼栋号<span class="req">*</span></label><input type="text" id="building" placeholder="如：3栋"></div>
 <div class="form-group"><label>房号<span class="req">*</span></label><input type="text" id="room" placeholder="如：502"></div>
 <div id="customFields"></div>
-<div class="vote-options"><div class="vote-btn agree" onclick="selVote('agree')">✅ 赞成</div><div class="vote-btn disagree" onclick="selVote('disagree')">❌ 反对</div></div>
+<div class="vote-options"><div class="vote-btn agree" onclick="selVote('agree')">✅ 赞成</div><div class="vote-btn disagree" onclick="selVote('disagree')">❌ 反对</div><div class="vote-btn abstain" onclick="selVote('abstain')">🤷 弃权</div></div>
 <input type="hidden" id="voteChoice">
+<div class="form-group"><label>业主签名<span class="req">*</span></label><div class="sig-box"><canvas id="sigCanvas"></canvas><div class="sig-actions"><button onclick="clearSig()">清除重签</button></div></div></div>
 <button class="submit-btn" onclick="submitVote()">提交投票</button>
 <div id="msg" class="msg"></div>
 <p class="notice" id="noticeText"></p>
@@ -58,31 +66,18 @@ h1{font-size:21px;color:#1a1a1a;text-align:center;margin-bottom:6px}
 <script>
 const cid=new URLSearchParams(location.search).get('cid');
 if(!cid)document.body.innerHTML='<div style="text-align:center;margin-top:100px;color:#fff;font-size:18px">链接无效</div>';
-let sVote='',cfg=null;
+let sVote='',cfg=null,hasSig=false;
 function selVote(t){sVote=t;document.querySelectorAll('.vote-btn').forEach(b=>b.classList.remove('selected'));document.querySelector('.vote-btn.'+t).classList.add('selected')}
 function selField(k,v){document.getElementById('field_'+k).value=v;document.querySelectorAll('.fopt-'+k).forEach(b=>b.classList.remove('selected'));document.querySelector('.fopt-'+k+'[data-v="'+v+'"]').classList.add('selected')}
 function showMsg(t,tp){const m=document.getElementById('msg');m.textContent=t;m.className='msg '+tp}
+function initSig(){const c=document.getElementById('sigCanvas'),ctx=c.getContext('2d');c.width=c.offsetWidth*2;c.height=240;ctx.scale(2,2);ctx.strokeStyle='#333';ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';let d=false;function gp(e){const r=c.getBoundingClientRect(),t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top}}function s(e){e.preventDefault();d=true;const p=gp(e);ctx.beginPath();ctx.moveTo(p.x,p.y)}function mv(e){e.preventDefault();if(!d)return;const p=gp(e);ctx.lineTo(p.x,p.y);ctx.stroke();hasSig=true}function e(){d=false}c.addEventListener('mousedown',s);c.addEventListener('mousemove',mv);c.addEventListener('mouseup',e);c.addEventListener('mouseleave',e);c.addEventListener('touchstart',s,{passive:false});c.addEventListener('touchmove',mv,{passive:false});c.addEventListener('touchend',e)}
+function clearSig(){const c=document.getElementById('sigCanvas'),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);hasSig=false}
+function getSigData(){if(!hasSig)return '';return document.getElementById('sigCanvas').toDataURL('image/png')}
 function init(){
 fetch('/api/system-name').then(r=>r.json()).then(d=>document.getElementById('sysName').textContent=d.name);
-fetch('/api/config?cid='+cid).then(r=>r.json()).then(c=>{
-if(c.error)return;cfg=c;
-document.getElementById('pageTitle').textContent=c.title;document.title=c.title;
-document.getElementById('pageSubtitle').textContent=c.subtitle;
-document.getElementById('noticeText').textContent='* '+c.notice;
-document.getElementById('infoList').innerHTML=(c.infoItems||[]).map((it,i)=>'<div class="info-item"'+(i===c.infoItems.length-1?' style="border:none"':'')+'><span class="info-label">'+it.label+'</span><span class="info-value">'+it.value+'</span></div>').join('');
-document.getElementById('customFields').innerHTML=(c.customFields||[]).map(f=>{
-const tag=f.required?'<span class="req">*</span>':'<span class="opt-tag">（选填）</span>';
-if(f.type==='select')return '<div class="form-group"><label>'+f.label+tag+'</label><input type="hidden" id="field_'+f.key+'"><div class="field-options">'+f.options.map(o=>'<div class="field-opt fopt-'+f.key+'" data-v="'+o+'" onclick="selField(\''+f.key+'\',\''+o+'\')">'+o+'</div>').join('')+'</div></div>';
-return '<div class="form-group"><label>'+f.label+tag+'</label><input type="text" id="field_'+f.key+'" placeholder="请输入'+f.label+'"></div>';
-}).join('');
-});loadResults();}
-function submitVote(){
-const n=document.getElementById('name').value.trim(),b=document.getElementById('building').value.trim(),r=document.getElementById('room').value.trim();
-if(!n||!b||!r){showMsg('请填写姓名、楼栋、房号','error');return}
-if(!sVote){showMsg('请选择赞成或反对','error');return}
-const fields={};if(cfg&&cfg.customFields){for(const f of cfg.customFields){const el=document.getElementById('field_'+f.key);const v=el?el.value.trim():'';if(f.required&&!v){showMsg('请填写'+f.label,'error');return}if(v)fields[f.key]=v}}
-fetch('/api/vote?cid='+cid,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,building:b,room:r,vote:sVote,fields})}).then(r=>r.json()).then(d=>{if(d.success){showMsg('投票成功！感谢参与','success');loadResults()}else showMsg(d.message||'失败','error')}).catch(()=>showMsg('网络错误','error'));}
-function loadResults(){fetch('/api/results?cid='+cid).then(r=>r.json()).then(d=>{const t=d.agree+d.disagree;if(!t)return;const ap=Math.round(d.agree/t*100);document.getElementById('resultArea').innerHTML='<div style="margin-bottom:6px"><span style="font-size:13px;color:#52c41a">赞成 '+d.agree+' 票</span><span style="float:right;font-size:13px;color:#ff4d4f">反对 '+d.disagree+' 票</span></div><div class="result-bar"><div class="result-fill agree" style="width:'+ap+'%">'+ap+'%</div></div><div class="total-votes">共计 '+t+' 票</div>'})}
+fetch('/api/config?cid='+cid).then(r=>r.json()).then(c=>{if(c.error)return;cfg=c;document.getElementById('pageTitle').textContent=c.title;document.title=c.title;document.getElementById('pageSubtitle').textContent=c.subtitle;document.getElementById('noticeText').textContent='* '+c.notice;document.getElementById('infoList').innerHTML=(c.infoItems||[]).map((it,i)=>'<div class="info-item"'+(i===c.infoItems.length-1?' style="border:none"':'')+'><span class="info-label">'+it.label+'</span><span class="info-value">'+it.value+'</span></div>').join('');document.getElementById('customFields').innerHTML=(c.customFields||[]).map(f=>{const tag=f.required?'<span class="req">*</span>':'<span class="opt-tag">（选填）</span>';if(f.type==='select')return '<div class="form-group"><label>'+f.label+tag+'</label><input type="hidden" id="field_'+f.key+'"><div class="field-options">'+f.options.map(o=>'<div class="field-opt fopt-'+f.key+'" data-v="'+o+'" onclick="selField(\''+f.key+'\',\''+o+'\')">'+o+'</div>').join('')+'</div></div>';return '<div class="form-group"><label>'+f.label+tag+'</label><input type="text" id="field_'+f.key+'" placeholder="请输入'+f.label+'"></div>'}).join('')});initSig();loadResults()}
+function submitVote(){const n=document.getElementById('name').value.trim(),b=document.getElementById('building').value.trim(),r=document.getElementById('room').value.trim();if(!n||!b||!r){showMsg('请填写姓名、楼栋、房号','error');return}if(!sVote){showMsg('请选择赞成、反对或弃权','error');return}if(!hasSig){showMsg('请签名确认','error');return}const sig=getSigData();const fields={};if(cfg&&cfg.customFields){for(const f of cfg.customFields){const el=document.getElementById('field_'+f.key);const v=el?el.value.trim():'';if(f.required&&!v){showMsg('请填写'+f.label,'error');return}if(v)fields[f.key]=v}}fetch('/api/vote?cid='+cid,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,building:b,room:r,vote:sVote,fields,sig})}).then(r=>r.json()).then(d=>{if(d.success){showMsg('投票成功！感谢参与','success');loadResults();clearSig();document.querySelectorAll('.vote-btn').forEach(b=>b.classList.remove('selected'));sVote='';document.getElementById('name').value='';document.getElementById('building').value='';document.getElementById('room').value=''}else showMsg(d.message||'失败','error')}).catch(()=>showMsg('网络错误','error'))}
+function loadResults(){fetch('/api/results?cid='+cid).then(r=>r.json()).then(d=>{const t=d.agree+d.disagree+d.abstain;if(!t)return;const ap=Math.round(d.agree/t*100),dp=Math.round(d.disagree/t*100);document.getElementById('resultArea').innerHTML='<div style="margin-bottom:6px"><span style="font-size:13px;color:#52c41a">赞成 '+d.agree+'</span><span style="font-size:13px;color:#ff4d4f;margin:0 10px">反对 '+d.disagree+'</span><span style="font-size:13px;color:#d48806">弃权 '+d.abstain+'</span></div><div class="result-bar" style="display:flex;height:26px;border-radius:13px;overflow:hidden;background:#f0f0f0"><div class="result-fill agree" style="width:'+ap+'%;border-radius:0">'+ap+'%</div><div class="result-fill disagree" style="width:'+dp+'%;border-radius:0">'+dp+'%</div><div class="result-fill abstain" style="flex:1;border-radius:0">'+(100-ap-dp)+'%</div></div><div class="total-votes">共计 '+t+' 票</div>'})}
 init();
 </script>
 </body>
